@@ -1,2 +1,2 @@
 # ray-tracing-in-one-weekend
-Rustの勉強とRayTracingの勉強
+RustとRayTracingの勉強
