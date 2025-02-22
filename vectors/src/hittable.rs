@@ -1,3 +1,4 @@
+use crate::interval::*;
 use crate::ray::*;
 use crate::vec3::*;
 
@@ -22,16 +23,16 @@ pub enum HittableEnum {
     Sphere(Sphere),
 }
 
-impl Hittable for HittableEnum {
-    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> bool {
-        match self {
-            HittableEnum::Sphere(sphere) => sphere.hit(ray, t_min, t_max, rec),
-        }
-    }
+pub trait Hittable {
+    fn hit(&self, ray: &Ray, ray_t: Interval, rec: &mut HitRecord) -> bool;
 }
 
-pub trait Hittable {
-    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> bool;
+impl Hittable for HittableEnum {
+    fn hit(&self, ray: &Ray, ray_t: Interval, rec: &mut HitRecord) -> bool {
+        match self {
+            HittableEnum::Sphere(sphere) => sphere.hit(ray, ray_t, rec),
+        }
+    }
 }
 
 pub struct HittableList {
@@ -39,7 +40,7 @@ pub struct HittableList {
 }
 
 impl Hittable for HittableList {
-    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> bool {
+    fn hit(&self, ray: &Ray, ray_t: Interval, rec: &mut HitRecord) -> bool {
         let mut temp_rec = HitRecord {
             point: Point3::new(0.0, 0.0, 0.0),
             normal: Vec3::new(0.0, 0.0, 0.0),
@@ -47,9 +48,9 @@ impl Hittable for HittableList {
             front_face: false,
         };
         let mut hit_anything = false;
-        let mut closest_so_far = t_max;
+        let mut closest_so_far = ray_t.max;
         for object in self.objects.iter() {
-            if object.hit(ray, t_min, closest_so_far, &mut temp_rec) {
+            if object.hit(ray, Interval::new(ray_t.min, closest_so_far), &mut temp_rec) {
                 hit_anything = true;
                 closest_so_far = temp_rec.t;
                 rec.point = temp_rec.point;
@@ -73,7 +74,7 @@ impl Sphere {
 }
 
 impl Hittable for Sphere {
-    fn hit(&self, ray: &Ray, ray_t_min: f64, ray_t_max: f64, rec: &mut HitRecord) -> bool {
+    fn hit(&self, ray: &Ray, ray_t: Interval, rec: &mut HitRecord) -> bool {
         let center = self.center;
         let radius = self.radius;
         let oc = center - ray.origin;
@@ -88,9 +89,9 @@ impl Hittable for Sphere {
         let sqrtd = discriminant.sqrt();
         // Find the nearest root that lies in the acceptable range.
         let mut root = (h - sqrtd) / a;
-        if root <= ray_t_min || ray_t_max <= root {
+        if !ray_t.surrounds(root) {
             root = (h + sqrtd) / a;
-            if root <= ray_t_min || ray_t_max <= root {
+            if !ray_t.surrounds(root) {
                 return false;
             }
         }
