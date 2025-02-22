@@ -1,14 +1,13 @@
 mod hittable;
+mod interval;
 mod ray;
-mod sphere;
 mod vec3;
-use crate::hittable::*;
-use crate::sphere::Sphere;
+use hittable::*;
 use ray::*;
 use std::io::Write;
 use vec3::*;
 
-pub fn ray_color(r: Ray, world: &dyn Hittable, _f: &dyn Fn() -> bool) -> Color {
+pub fn ray_color<T: Hittable>(r: Ray, world: &T, _f: &dyn Fn() -> bool) -> Color {
     let mut rec = HitRecord {
         point: Vec3(0.0, 0.0, 0.0),
         normal: Vec3(0.0, 0.0, 0.0),
@@ -71,10 +70,10 @@ fn main() {
 
     // world
     //
-    let sphere: Box<dyn Hittable> = Box::new(Sphere::new(Vec3(0.0, 0.0, -1.0), 0.5));
-    let big_sphere: Box<dyn Hittable> = Box::new(Sphere::new(Vec3(0.0, -100.5, -1.0), 100.0));
+    let sphere = HittableEnum::Sphere(Sphere::new(Vec3(0.0, 0.0, -1.0), 0.5));
+    let big_sphere = HittableEnum::Sphere(Sphere::new(Vec3(0.0, -100.5, -1.0), 100.0));
     let world: HittableList = HittableList {
-        objects: vec![&sphere, &big_sphere],
+        objects: vec![sphere, big_sphere],
     };
 
     // camera

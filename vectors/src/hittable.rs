@@ -18,15 +18,27 @@ impl HitRecord {
     }
 }
 
+pub enum HittableEnum {
+    Sphere(Sphere),
+}
+
+impl Hittable for HittableEnum {
+    fn hit(&self, ray: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> bool {
+        match self {
+            HittableEnum::Sphere(sphere) => sphere.hit(ray, t_min, t_max, rec),
+        }
+    }
+}
+
 pub trait Hittable {
     fn hit(&self, ray: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> bool;
 }
 
-pub struct HittableList<'a> {
-    pub objects: Vec<&'a Box<dyn Hittable>>,
+pub struct HittableList {
+    pub objects: Vec<HittableEnum>,
 }
 
-impl Hittable for HittableList<'_> {
+impl Hittable for HittableList {
     fn hit(&self, ray: &Ray, t_min: f64, t_max: f64, rec: &mut HitRecord) -> bool {
         let mut temp_rec = HitRecord {
             point: Point3::new(0.0, 0.0, 0.0),
@@ -47,5 +59,45 @@ impl Hittable for HittableList<'_> {
             }
         }
         hit_anything
+    }
+}
+
+pub struct Sphere {
+    center: Point3,
+    radius: f64,
+}
+impl Sphere {
+    pub fn new(center: Point3, radius: f64) -> Self {
+        Self { center, radius }
+    }
+}
+
+impl Hittable for Sphere {
+    fn hit(&self, ray: &Ray, ray_t_min: f64, ray_t_max: f64, rec: &mut HitRecord) -> bool {
+        let center = self.center;
+        let radius = self.radius;
+        let oc = center - ray.origin;
+        let a = ray.dir.length_squared();
+        let h = ray.dir.dot(oc);
+        let c = oc.length_squared() - radius * radius;
+        let discriminant = h * h - a * c;
+        if discriminant < 0.0 {
+            return false;
+        }
+
+        let sqrtd = discriminant.sqrt();
+        // Find the nearest root that lies in the acceptable range.
+        let mut root = (h - sqrtd) / a;
+        if root <= ray_t_min || ray_t_max <= root {
+            root = (h + sqrtd) / a;
+            if root <= ray_t_min || ray_t_max <= root {
+                return false;
+            }
+        }
+        rec.t = root;
+        rec.point = ray.at(rec.t);
+        let outward_normal = (rec.point - center) / radius;
+        rec.set_face_normal(ray, outward_normal);
+        true
     }
 }
