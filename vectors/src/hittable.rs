@@ -9,6 +9,14 @@ pub struct HitRecord {
     pub front_face: bool,
 }
 impl HitRecord {
+    pub fn new() -> Self {
+        Self {
+            point: Point3::new(0.0, 0.0, 0.0),
+            normal: Vec3::new(0.0, 0.0, 0.0),
+            t: 0.0,
+            front_face: false,
+        }
+    }
     pub fn set_face_normal(&mut self, ray: &Ray, outward_normal: Vec3) {
         self.front_face = ray.dir.dot(outward_normal) < 0.0;
         self.normal = if self.front_face {
@@ -67,6 +75,7 @@ pub struct Sphere {
     center: Point3,
     radius: f64,
 }
+
 impl Sphere {
     pub fn new(center: Point3, radius: f64) -> Self {
         Self { center, radius }

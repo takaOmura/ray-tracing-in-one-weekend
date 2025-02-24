@@ -20,12 +20,19 @@ impl Interval {
         self.min < x && x < self.max
     }
 
-    pub const Empty: Interval = Interval {
+    pub fn clamp(&self, x: f64) -> f64 {
+        match x {
+            x if x < self.min => self.min,
+            x if x > self.max => self.max,
+            _ => x,
+        }
+    }
+    pub const EMPTY: Interval = Interval {
         min: f64::INFINITY,
         max: f64::NEG_INFINITY,
     };
 
-    pub const Universe: Interval = Interval {
+    pub const UNIVERSE: Interval = Interval {
         min: f64::NEG_INFINITY,
         max: f64::INFINITY,
     };

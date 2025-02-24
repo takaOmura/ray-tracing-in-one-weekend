@@ -2,11 +2,12 @@ mod camera;
 mod hittable;
 mod interval;
 mod ray;
+mod utils;
 mod vec3;
 use camera::*;
 use hittable::*;
-use interval::*;
 use ray::*;
+use std::io::Write;
 use vec3::*;
 
 pub fn hit_sphere(center: &Vec3, radius: f64, r: &Ray) -> f64 {
@@ -26,6 +27,7 @@ fn main() {
     //image
     const ASPECT_RATIO: f64 = 16.0 / 9.0;
     const IMAGE_WIDTH: i32 = 400;
+    const PIXEL_SAMPLE_SCALE: i32 = 30;
 
     let world: HittableList = HittableList {
         objects: vec![
@@ -33,8 +35,13 @@ fn main() {
             HittableEnum::Sphere(Sphere::new(Vec3(0.0, -100.5, -1.0), 100.0)),
         ],
     };
-
-    Camera::new(ASPECT_RATIO, IMAGE_WIDTH).render(world);
+    let output = {
+        let mut file = std::fs::File::create("test.ppm").expect("create failed");
+        move |text: String| {
+            file.write_all(text.as_bytes()).expect("write failed");
+        }
+    };
+    Camera::new(ASPECT_RATIO, IMAGE_WIDTH, PIXEL_SAMPLE_SCALE).render(output, world);
 
     //Render
     // print each element of upper_left_corner

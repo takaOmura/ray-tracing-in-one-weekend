@@ -1,5 +1,5 @@
-use std::fs::File;
-use std::io::Write;
+use crate::interval::*;
+use crate::utils::*;
 use std::ops::*;
 // use rand::{Rand, Rng, random};
 
@@ -8,6 +8,37 @@ pub struct Vec3(pub f64, pub f64, pub f64);
 
 pub type Point3 = Vec3;
 pub type Color = Vec3;
+
+fn random() -> Vec3 {
+    Vec3(random_double(), random_double(), random_double())
+}
+
+fn random_with_range(min: f64, max: f64) -> Vec3 {
+    Vec3(
+        random_double_with_range(min, max),
+        random_double_with_range(min, max),
+        random_double_with_range(min, max),
+    )
+}
+
+fn random_in_unit_vector() -> Vec3 {
+    loop {
+        let p = random_with_range(-1.0, 1.0);
+        let length_squared = p.length_squared();
+        if 1e-160 < length_squared && length_squared < 1.0 {
+            return p;
+        }
+    }
+}
+
+pub fn random_on_hemisphere(normal: Vec3) -> Vec3 {
+    let on_unit_sphere = random_in_unit_vector();
+    if on_unit_sphere.dot(normal) > 0.0 {
+        on_unit_sphere
+    } else {
+        -on_unit_sphere
+    }
+}
 
 impl Vec3 {
     pub fn x(&self) -> f64 {
@@ -48,15 +79,16 @@ impl Vec3 {
         )
     }
 
-    pub fn write_color(&self, mut file: &File) {
+    const INTENSITY: Interval = Interval { min: 0.0, max: 1.0 };
+
+    pub fn get_color(&self) -> String {
         let r = self.x();
         let g = self.y();
         let b = self.z();
-        let r_byte = (255.999 * r) as u64;
-        let g_byte = (255.999 * g) as u64;
-        let b_byte = (255.999 * b) as u64;
-        file.write_all(format!("{} {} {}\n", r_byte, g_byte, b_byte).as_bytes())
-            .expect("write failed");
+        let r_byte = (255.999 * Self::INTENSITY.clamp(r)) as u64;
+        let g_byte = (255.999 * Self::INTENSITY.clamp(g)) as u64;
+        let b_byte = (255.999 * Self::INTENSITY.clamp(b)) as u64;
+        format!("{} {} {}\n", r_byte, g_byte, b_byte)
     }
 }
 

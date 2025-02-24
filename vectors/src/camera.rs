@@ -1,75 +1,91 @@
 use crate::hittable::*;
 use crate::interval::*;
 use crate::ray::*;
+use crate::utils::*;
 use crate::vec3::*;
-use std::io::Write;
 
 pub struct Camera {
     pub aspect_ratio: f64,
     pub image_width: i32,
+    pub samples_per_pixel: i32,
     image_height: i32,
     center: Point3,
+    pixel_sample_scale: f64,
     pixel00_loc: Point3,
     pixel_delta_u: Vec3,
     pixel_delta_v: Vec3,
 }
 
 impl Camera {
-    pub fn new(aspect_ratio: f64, image_width: i32) -> Camera {
+    pub fn new(aspect_ratio: f64, image_width: i32, samples_per_pixel: i32) -> Camera {
         Camera {
             aspect_ratio,
             image_width,
+            samples_per_pixel,
             image_height: 0,
+            pixel_sample_scale: 0.0,
             center: Vec3(0.0, 0.0, 0.0),
             pixel00_loc: Vec3(0.0, 0.0, 0.0),
             pixel_delta_u: Vec3(0.0, 0.0, 0.0),
             pixel_delta_v: Vec3(0.0, 0.0, 0.0),
         }
     }
-    pub fn render(&mut self, world: HittableList) {
+
+    pub fn render<F: FnMut(String)>(&mut self, mut output: F, world: HittableList) {
         self.initialize();
 
         // Render
-        let mut file = std::fs::File::create("test.ppm").expect("create failed");
-        file.write_all(format!("P3\n{} {}\n255\n", self.image_width, self.image_height).as_bytes())
-            .expect("write failed");
+        output(format!(
+            "P3\n{} {}\n255\n",
+            self.image_width, self.image_height
+        ));
+
         for j in 0..(self.image_height) as i32 {
-            // if j % 10 == 0 {
-            //     println!("line remaining: {}", j);
-            // }
             for i in 0..self.image_width {
-                let pixel_center: Vec3 = self.pixel00_loc
-                    + self.pixel_delta_u * i as f64
-                    + self.pixel_delta_v * j as f64;
-                let ray_direction = pixel_center - self.center;
-                let ray = Ray {
-                    origin: self.center,
-                    dir: ray_direction,
-                };
-                // if j % 100 == 0 && i == 0 {
-                //     println!("ray_direction {:?}", ray_direction);
-                // }
-                let pixel_color: Color = self.ray_color(ray, &world, &|| {
-                    (j == 0 && i == 0) || j % 100 == 0 && i == 0
-                });
-                Vec3::write_color(&pixel_color, &file);
+                let pixel_color = (0..self.samples_per_pixel)
+                    .map(|_| {
+                        let r = self.get_ray(i, j);
+                        self.ray_color(r, &world)
+                    })
+                    .fold(Vec3(0.0, 0.0, 0.0), |acc, x| acc + x)
+                    * self.pixel_sample_scale as f64;
+
+                output(Vec3::get_color(&pixel_color));
             }
         }
     }
 
-    pub fn ray_color(&self, r: Ray, world: &HittableList, _f: &dyn Fn() -> bool) -> Color {
-        let mut rec = HitRecord {
-            point: Vec3(0.0, 0.0, 0.0),
-            normal: Vec3(0.0, 0.0, 0.0),
-            t: 0.0,
-            front_face: false,
-        };
+    fn get_ray(&self, i: i32, j: i32) -> Ray {
+        let offset = self.sample_square();
+        let origin = self.center;
+        Ray {
+            origin,
+            dir: self.pixel00_loc
+                + self.pixel_delta_u * (i as f64 + offset.x())
+                + self.pixel_delta_v * (j as f64 + offset.y())
+                - origin,
+        }
+    }
+
+    fn sample_square(&self) -> Vec3 {
+        Vec3::new(random_double() - 0.5, random_double() - 0.5, 0.0)
+    }
+
+    // if hits an object, return the color of the object
+    // else return the background color
+    fn ray_color(&self, r: Ray, world: &HittableList) -> Color {
+        let mut rec = HitRecord::new();
         if world.hit(&r, Interval::new(0.0, f64::INFINITY), &mut rec) {
-            return Vec3(
-                rec.normal.x() + 1.0,
-                rec.normal.y() + 1.0,
-                rec.normal.z() + 1.0,
-            ) * 0.5;
+            return {
+                let direction = random_on_hemisphere(rec.normal);
+                self.ray_color(
+                    Ray {
+                        origin: rec.point,
+                        dir: direction,
+                    },
+                    world,
+                ) * 0.5
+            };
         }
         let unit_direction = r.dir.unit_vector();
         let a = 0.5 * (unit_direction.y() + 1.0);
@@ -83,23 +99,59 @@ impl Camera {
 
     fn initialize(&mut self) {
         self.center = Vec3(0.0, 0.0, 0.0);
-        self.image_height = || -> i32 {
-            let image_height = self.image_width / self.aspect_ratio as i32;
+        self.image_height = {
+            let image_height = (self.image_width as f64 / self.aspect_ratio) as i32;
             if image_height < 1 {
                 1
             } else {
                 image_height
             }
-        }();
+        };
+        self.pixel_sample_scale = 1.0 / self.samples_per_pixel as f64;
+
         let viewport_height = 2.0;
         let viewport_width = viewport_height * self.image_width as f64 / self.image_height as f64;
         let focal_length = 1.0;
         let viewport_u = Vec3(viewport_width, 0.0, 0.0);
         let viewport_v = Vec3(0.0, -1.0 * viewport_height, 0.0);
+
         self.pixel_delta_u = viewport_u / self.image_width as f64;
         self.pixel_delta_v = viewport_v / self.image_height as f64;
+
         let upper_left_corner =
             self.center - viewport_u / 2.0 - viewport_v / 2.0 - Vec3(0.0, 0.0, focal_length);
+
         self.pixel00_loc = upper_left_corner + self.pixel_delta_u / 2.0 + self.pixel_delta_v / 2.0;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_ray() {
+        let mut outs = Vec::new();
+        let mut camera = Camera::new(16.0 / 9.0, 16, 10);
+        let world = HittableList {
+            objects: vec![
+                HittableEnum::Sphere(Sphere::new(Vec3(0.0, 0.0, -1.0), 0.5)),
+                HittableEnum::Sphere(Sphere::new(Vec3(0.0, -100.5, -1.0), 100.0)),
+            ],
+        };
+        camera.initialize();
+        for i in 0..camera.image_height {
+            for j in 0..camera.image_width {
+                let pixel_color = (0..camera.samples_per_pixel)
+                    .map(|_| {
+                        let r = camera.get_ray(i, j);
+                        camera.ray_color(r, &world)
+                    })
+                    .fold(Vec3(0.0, 0.0, 0.0), |acc, x| acc + x)
+                    * camera.pixel_sample_scale;
+                outs.push(pixel_color);
+            }
+        }
+        assert!(outs.iter().all(|x| -0.5 <= x.x() && x.x() <= 1.5));
     }
 }
