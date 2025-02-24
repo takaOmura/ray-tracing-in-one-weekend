@@ -36,7 +36,7 @@ fn main() {
         ],
     };
     let output = {
-        let mut file = std::fs::File::create("test.ppm").expect("create failed");
+        let mut file = std::fs::File::create("./images/test.ppm").expect("create failed");
         move |text: String| {
             file.write_all(text.as_bytes()).expect("write failed");
         }
