@@ -1,6 +1,7 @@
 mod camera;
 mod hittable;
 mod interval;
+mod material;
 mod ray;
 mod utils;
 mod vec3;
@@ -27,21 +28,29 @@ fn main() {
     //image
     const ASPECT_RATIO: f64 = 16.0 / 9.0;
     const IMAGE_WIDTH: i32 = 400;
-    const PIXEL_SAMPLE_SCALE: i32 = 30;
+    const PIXEL_SAMPLE_SCALE: i32 = 20;
+    const MAX_DEPTH: i32 = 10;
+
+    let material_ground = material::Material::Lambertian(Vec3(0.8, 0.8, 0.0));
+    let material_center = material::Material::Lambertian(Vec3(0.1, 0.2, 0.5));
+    let material_left = material::Material::Metal(Vec3(0.8, 0.8, 0.8));
+    let material_right = material::Material::Metal(Vec3(0.8, 0.6, 0.2));
 
     let world: HittableList = HittableList {
         objects: vec![
-            HittableEnum::Sphere(Sphere::new(Vec3(0.0, 0.0, -1.0), 0.5)),
-            HittableEnum::Sphere(Sphere::new(Vec3(0.0, -100.5, -1.0), 100.0)),
+            HittableEnum::Sphere(Sphere::new(Vec3(0.0, 0.0, -1.0), 0.5, material_center)),
+            HittableEnum::Sphere(Sphere::new(Vec3(0.0, -100.5, -1.0), 100.0, material_ground)),
+            HittableEnum::Sphere(Sphere::new(Vec3(-1.0, 0.0, -1.0), 0.5, material_left)),
+            HittableEnum::Sphere(Sphere::new(Vec3(1.0, 0.0, -1.0), 0.5, material_right)),
         ],
     };
     let output = {
-        let mut file = std::fs::File::create("./images/test.ppm").expect("create failed");
+        let mut file = std::fs::File::create("./images/10.ppm").expect("create failed");
         move |text: String| {
             file.write_all(text.as_bytes()).expect("write failed");
         }
     };
-    Camera::new(ASPECT_RATIO, IMAGE_WIDTH, PIXEL_SAMPLE_SCALE).render(output, world);
+    Camera::new(ASPECT_RATIO, IMAGE_WIDTH, PIXEL_SAMPLE_SCALE, MAX_DEPTH).render(output, world);
 
     //Render
     // print each element of upper_left_corner

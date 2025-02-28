@@ -1,22 +1,27 @@
 use crate::interval::*;
+use crate::material::*;
 use crate::ray::*;
 use crate::vec3::*;
 
 pub struct HitRecord {
     pub point: Point3,
     pub normal: Vec3,
+    pub material: Material,
     pub t: f64,
     pub front_face: bool,
 }
+
 impl HitRecord {
     pub fn new() -> Self {
         Self {
             point: Point3::new(0.0, 0.0, 0.0),
             normal: Vec3::new(0.0, 0.0, 0.0),
+            material: Material::Lambertian(Color::new(0.0, 0.0, 0.0)),
             t: 0.0,
             front_face: false,
         }
     }
+
     pub fn set_face_normal(&mut self, ray: &Ray, outward_normal: Vec3) {
         self.front_face = ray.dir.dot(outward_normal) < 0.0;
         self.normal = if self.front_face {
@@ -54,15 +59,20 @@ impl Hittable for HittableList {
             normal: Vec3::new(0.0, 0.0, 0.0),
             t: 0.0,
             front_face: false,
+            material: Material::None,
         };
+
         let mut hit_anything = false;
         let mut closest_so_far = ray_t.max;
+
         for object in self.objects.iter() {
-            if object.hit(ray, Interval::new(ray_t.min, closest_so_far), &mut temp_rec) {
+            let interval = Interval::new(ray_t.min, closest_so_far);
+            if object.hit(ray, interval, &mut temp_rec) {
                 hit_anything = true;
                 closest_so_far = temp_rec.t;
                 rec.point = temp_rec.point;
                 rec.normal = temp_rec.normal;
+                rec.material = temp_rec.material;
                 rec.t = temp_rec.t;
                 rec.front_face = temp_rec.front_face;
             }
@@ -74,11 +84,16 @@ impl Hittable for HittableList {
 pub struct Sphere {
     center: Point3,
     radius: f64,
+    material: Material,
 }
 
 impl Sphere {
-    pub fn new(center: Point3, radius: f64) -> Self {
-        Self { center, radius }
+    pub fn new(center: Point3, radius: f64, material: Material) -> Self {
+        Self {
+            center,
+            radius,
+            material,
+        }
     }
 }
 
@@ -91,6 +106,7 @@ impl Hittable for Sphere {
         let h = ray.dir.dot(oc);
         let c = oc.length_squared() - radius * radius;
         let discriminant = h * h - a * c;
+
         if discriminant < 0.0 {
             return false;
         }
@@ -108,6 +124,7 @@ impl Hittable for Sphere {
         rec.point = ray.at(rec.t);
         let outward_normal = (rec.point - center) / radius;
         rec.set_face_normal(ray, outward_normal);
+        rec.material = self.material;
         true
     }
 }

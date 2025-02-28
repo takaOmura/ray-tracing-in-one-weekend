@@ -9,6 +9,22 @@ pub struct Vec3(pub f64, pub f64, pub f64);
 pub type Point3 = Vec3;
 pub type Color = Vec3;
 
+pub fn reflect(v: Vec3, n: Vec3) -> Vec3 {
+    v - n * v.dot(n) * 2.0
+}
+
+pub fn linear_to_gamma(value: f64) -> f64 {
+    match value {
+        value if value >= 0.0 => value.sqrt(),
+        _ => 0.0,
+    }
+}
+
+pub fn near_zero(v: Vec3) -> bool {
+    const S: f64 = 1e-8;
+    v.0.abs() < S && v.1.abs() < S && v.2.abs() < S
+}
+
 fn random() -> Vec3 {
     Vec3(random_double(), random_double(), random_double())
 }
@@ -21,18 +37,18 @@ fn random_with_range(min: f64, max: f64) -> Vec3 {
     )
 }
 
-fn random_in_unit_vector() -> Vec3 {
+pub fn random_unit_vector() -> Vec3 {
     loop {
         let p = random_with_range(-1.0, 1.0);
         let length_squared = p.length_squared();
         if 1e-160 < length_squared && length_squared < 1.0 {
-            return p;
+            return p.unit_vector();
         }
     }
 }
 
 pub fn random_on_hemisphere(normal: Vec3) -> Vec3 {
-    let on_unit_sphere = random_in_unit_vector();
+    let on_unit_sphere = random_unit_vector();
     if on_unit_sphere.dot(normal) > 0.0 {
         on_unit_sphere
     } else {
@@ -82,9 +98,9 @@ impl Vec3 {
     const INTENSITY: Interval = Interval { min: 0.0, max: 1.0 };
 
     pub fn get_color(&self) -> String {
-        let r = self.x();
-        let g = self.y();
-        let b = self.z();
+        let r = linear_to_gamma(self.x());
+        let g = linear_to_gamma(self.y());
+        let b = linear_to_gamma(self.z());
         let r_byte = (255.999 * Self::INTENSITY.clamp(r)) as u64;
         let g_byte = (255.999 * Self::INTENSITY.clamp(g)) as u64;
         let b_byte = (255.999 * Self::INTENSITY.clamp(b)) as u64;
