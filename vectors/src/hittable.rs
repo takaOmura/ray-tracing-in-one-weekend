@@ -34,6 +34,7 @@ impl HitRecord {
 
 pub enum HittableEnum {
     Sphere(Sphere),
+    HalfSphere(HalfSphere),
 }
 
 pub trait Hittable {
@@ -44,6 +45,7 @@ impl Hittable for HittableEnum {
     fn hit(&self, ray: &Ray, ray_t: Interval, rec: &mut HitRecord) -> bool {
         match self {
             HittableEnum::Sphere(sphere) => sphere.hit(ray, ray_t, rec),
+            HittableEnum::HalfSphere(sphere) => sphere.hit(ray, ray_t, rec),
         }
     }
 }
@@ -114,12 +116,65 @@ impl Hittable for Sphere {
         let sqrtd = discriminant.sqrt();
         // Find the nearest root that lies in the acceptable range.
         let mut root = (h - sqrtd) / a;
+
         if !ray_t.surrounds(root) {
             root = (h + sqrtd) / a;
             if !ray_t.surrounds(root) {
                 return false;
             }
         }
+
+        rec.t = root;
+        rec.point = ray.at(rec.t);
+        let outward_normal = (rec.point - center) / radius;
+        rec.set_face_normal(ray, outward_normal);
+        rec.material = self.material;
+        true
+    }
+}
+
+pub struct HalfSphere {
+    center: Point3,
+    radius: f64,
+    material: Material,
+    cut: Vec3,
+}
+
+impl HalfSphere {
+    pub fn new(center: Point3, radius: f64, material: Material, cut: Vec3) -> Self {
+        Self {
+            center,
+            radius,
+            material,
+            cut,
+        }
+    }
+}
+
+impl Hittable for HalfSphere {
+    fn hit(&self, ray: &Ray, ray_t: Interval, rec: &mut HitRecord) -> bool {
+        let center = self.center;
+        let radius = self.radius;
+        let oc = center - ray.origin;
+        let a = ray.dir.length_squared();
+        let h = ray.dir.dot(oc);
+        let c = oc.length_squared() - radius * radius;
+        let discriminant = h * h - a * c;
+
+        if discriminant < 0.0 {
+            return false;
+        }
+
+        let sqrtd = discriminant.sqrt();
+        // Find the nearest root that lies in the acceptable range.
+        let mut root = (h - sqrtd) / a;
+        if !ray_t.surrounds(root) {
+            root = (h + sqrtd) / a;
+            if !ray_t.surrounds(root) {
+                return false;
+            }
+        }
+
         rec.t = root;
         rec.point = ray.at(rec.t);
         let outward_normal = (rec.point - center) / radius;
