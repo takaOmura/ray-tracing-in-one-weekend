@@ -15,22 +15,24 @@ fn main() {
     //image
     const ASPECT_RATIO: f64 = 16.0 / 9.0;
     const IMAGE_WIDTH: i32 = 400;
-    const PIXEL_SAMPLE_SCALE: i32 = 150;
-    const MAX_DEPTH: i32 = 40;
-    const VFOV: f64 = 20.0;
-    const LOOK_FROM: Vec3 = Vec3(-2.0, 1.0, 3.0);
-    const LOOK_AT: Vec3 = Vec3(0.0, 0.0, -1.0);
+    const PIXEL_SAMPLE_SCALE: i32 = 100;
+    const MAX_DEPTH: i32 = 80;
+    const VFOV: f64 = 3.5;
+    const LOOK_FROM: Vec3 = Vec3(-40.0, 30.0, 30.0);
+    const LOOK_AT: Vec3 = Vec3(0.25, 0.5, -1.0);
     const VUP: Vec3 = Vec3(0.0, 1.0, 0.0);
 
-    let material_ground = material::Material::Lambertian(Vec3(0.8, 0.8, 0.0));
-    let material_center = material::Material::Lambertian(Vec3(0.1, 0.2, 0.5));
+    let material_ground = material::Material::new_metal(Vec3(0.8, 0.8, 0.0), 0.0);
+    let material_center = material::Material::Lambertian(Vec3(0.8, 0.6, 0.6));
     // let material_surrounding = material::Material::new_metal(Vec3(1.0, 1.0, 1.0), 0.0);
     let material_left = material::Material::Dielectric(1.5);
     let material_bubble = material::Material::Dielectric(1.0 / 1.614);
     let material_inside_bubble1 = material::Material::Lambertian(Vec3(0.2, 0.8, 0.6));
     let material_inside_bubble2 = material::Material::Lambertian(Vec3(0.8, 1.0, 0.2));
     let material_inside_bubble3 = material::Material::new_metal(Vec3(0.8, 1.0, 0.8), 0.0);
-    let material_right = material::Material::new_metal(Vec3(0.8, 0.8, 0.8), 0.8);
+    let material_right = material::Material::new_metal(Vec3(0.8, 0.8, 0.8), 0.4);
+    let mirror = material::Material::new_metal(Vec3(0.8, 0.8, 0.8), 0.0);
+    let mirror_red = material::Material::new_metal(Vec3(0.8, 0.2, 0.2), 0.0);
 
     let world: HittableList = HittableList {
         objects: vec![
@@ -59,6 +61,8 @@ fn main() {
                 material_inside_bubble3,
             )),
             HittableEnum::Sphere(Sphere::new(Vec3(1.0, 0.0, -1.0), 0.5, material_right)),
+            HittableEnum::Sphere(Sphere::new(Vec3(1.0, -5.0, -16.0), 15.0, mirror)),
+            HittableEnum::Sphere(Sphere::new(Vec3(10.0, 30.0, 5.0), 20.0, mirror_red)),
         ],
     };
 
